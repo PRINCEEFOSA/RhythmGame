@@ -1,0 +1,129 @@
+import pygame
+import random
+import os
+
+# Initialize Pygame
+pygame.init()
+
+# Set up display
+screen_width = 800
+screen_height = 600
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption("Rhythm Game")
+
+# Define Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+GRANITE = (112, 128, 144)  # Granite color
+
+# Set Clock
+clock = pygame.time.Clock()
+
+# Note class to handle falling tiles
+class Note:
+    def __init__(self):
+        self.x = random.choice([200, 400, 600])  # Random lanes
+        self.y = 0
+        self.speed = 5
+        self.height = 150  # Longer tiles
+        self.color = (random.randint(100, 255), random.randint(100, 255), random.randint(100, 255))  # Glowing effect
+
+    def update(self, speed_multiplier):
+        self.y += self.speed * speed_multiplier
+
+    def draw(self):
+        pygame.draw.rect(screen, self.color, (self.x, self.y, 100, self.height))
+        glow = pygame.Surface((100, self.height), pygame.SRCALPHA)
+        pygame.draw.rect(glow, (*self.color, 50), glow.get_rect())  # Transparent glow
+        screen.blit(glow, (self.x, self.y))
+
+# Function to randomly select a music file from a folder
+def load_random_music(folder="music"):
+    music_files = [file for file in os.listdir(folder) if file.endswith('.mp3')]
+    if music_files:
+        chosen_music = random.choice(music_files)
+        pygame.mixer.music.load(os.path.join(folder, chosen_music))
+        pygame.mixer.music.play(-1)  # Loop the selected track
+
+# Main game function
+def game():
+    running = True
+    notes = []
+    spawn_note_timer = 0
+    score = 0
+    speed_multiplier = 1  # Controls difficulty level
+    note_hit_margin = 30  # How close the note needs to be to bottom to be "hit"
+    
+    # Set background to granite color
+    screen.fill(GRANITE)
+    
+    # Load random music
+    load_random_music()
+
+    while running:
+        screen.fill(GRANITE)
+
+        # Event handling
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # Spawn new notes based on timing (sync with beat)
+        spawn_note_timer += 1
+        if spawn_note_timer > 60:  # Adjust this based on BPM (60 frames ~ 1 second)
+            notes.append(Note())
+            spawn_note_timer = 0
+
+        # Update and draw notes
+        for note in notes:
+            note.update(speed_multiplier)
+            note.draw()
+
+        # Check for player input and hit detection
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            for note in notes:
+                if note.x == 200 and screen_height - note_hit_margin < note.y < screen_height:  # Check if note is at bottom
+                    score += 1
+                    notes.remove(note)  # Remove note when hit
+                    break
+        if keys[pygame.K_RIGHT]:
+            for note in notes:
+                if note.x == 400 and screen_height - note_hit_margin < note.y < screen_height:
+                    score += 1
+                    notes.remove(note)
+                    break
+        if keys[pygame.K_DOWN]:
+            for note in notes:
+                if note.x == 600 and screen_height - note_hit_margin < note.y < screen_height:
+                    score += 1
+                    notes.remove(note)
+                    break
+
+        # Increase difficulty as score increases
+        if score > 10:
+            speed_multiplier = 1.5
+        if score > 20:
+            speed_multiplier = 2
+
+        # Display score on screen
+        font = pygame.font.SysFont(None, 55)
+        score_text = font.render(f"Score: {score}", True, WHITE)
+        screen.blit(score_text, [10, 10])
+
+        # Remove notes that go off the screen
+        notes = [note for note in notes if note.y < screen_height]
+
+        # Update display
+        pygame.display.update()
+
+        # Frame rate
+        clock.tick(60)
+
+# Run the game
+game()
+
+# Quit Pygame
+pygame.quit()
